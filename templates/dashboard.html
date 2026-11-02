@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroPulse Dashboard | Air Quality Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body class="dashboard-body">
+  <aside class="sidebar">
+    <a class="brand" href="/"><span class="brand-mark">◈</span><span>AERO<span class="accent">PULSE</span></span></a>
+    <div class="side-label">WORKSPACE</div>
+    <a class="side-link active" href="#overview"><span>▦</span> Overview</a>
+    <a class="side-link" href="#live-air"><span>◎</span> Live lookup</a>
+    <a class="side-link" href="#locations"><span>⌖</span> Location analysis</a>
+    <a class="side-link" href="#trends"><span>⌁</span> Pollution trends</a>
+    <a class="side-link" href="#records"><span>▤</span> Data explorer</a>
+    <div class="sidebar-bottom"><div class="side-status"><span class="live-dot"></span> ANALYSIS READY</div><a href="/" class="new-analysis">＋ New analysis</a><small>AIR QUALITY MONITORING<br>PROJECT WORKSPACE</small></div>
+  </aside>
+  <main class="dashboard-main">
+    <header class="dash-header"><div><div class="breadcrumb">WORKSPACE <span>/</span> OVERVIEW</div><h1>Air quality <span class="gradient-text">overview</span></h1><p class="muted">Your pollution data, translated into actionable insights.</p></div><div class="header-actions"><span class="dataset-badge"><span class="live-dot"></span>{{ filename }}</span><a class="secondary-btn compact-btn" href="/">↗ Upload new file</a></div></header>
+
+    <section id="overview">
+      <div class="section-mini-title"><span>01</span> KEY METRICS <i></i></div>
+      <div class="metric-grid">
+        <div class="metric-card"><div class="metric-top"><span>Total records</span><span class="metric-symbol">▤</span></div><div class="metric-value">{{ total_records }}</div><div class="metric-foot">Cleaned dataset entries</div><div class="metric-line line-green"></div></div>
+        <div class="metric-card"><div class="metric-top"><span>Locations tracked</span><span class="metric-symbol">⌖</span></div><div class="metric-value">{{ total_locations }}</div><div class="metric-foot">Unique monitoring locations</div><div class="metric-line line-cyan"></div></div>
+        <div class="metric-card"><div class="metric-top"><span>Average AQI</span><span class="metric-symbol">⌁</span></div><div class="metric-value">{% if average_aqi is not none %}{{ "%.1f"|format(average_aqi) }}{% else %}N/A{% endif %}</div><div class="metric-foot">Across available AQI readings</div><div class="metric-line line-purple"></div></div>
+        <div class="metric-card"><div class="metric-top"><span>Highest average AQI</span><span class="metric-symbol">↗</span></div><div class="metric-value metric-location">{% if highest_location %}{{ highest_location }}{% else %}N/A{% endif %}</div><div class="metric-foot">Among locations in this dataset</div><div class="metric-line line-orange"></div></div>
+      </div>
+    </section>
+
+
+    <section class="dashboard-section" id="live-air">
+      <div class="section-mini-title"><span>LIVE</span> LIVE LOCATION LOOKUP <i></i></div>
+      <div class="panel live-panel">
+        <div class="panel-heading"><div><h2>Explore air quality anywhere</h2><p>Search a city or place to retrieve current estimates and a 48-hour AQI timeline.</p></div><span class="panel-badge green-badge">OPEN-METEO</span></div>
+        <form id="liveSearchForm" class="live-search-form">
+          <input id="placeInput" type="search" class="search-input live-place-input" placeholder="Enter city or place (e.g. Faridabad, Delhi)" value="Faridabad" required maxlength="120">
+          <button class="primary-btn compact-btn" type="submit" id="liveSearchButton">Search location ↗</button>
+          <button class="secondary-btn compact-btn" type="button" id="liveRefreshButton">↻ Refresh</button>
+        </form>
+        <div id="liveStatus" class="live-status" role="status">Search for a location to view its air-quality estimates.</div>
+        <div id="liveResults" class="live-results" hidden>
+          <div class="live-location-heading"><div><h3 id="liveLocationName">—</h3><p id="liveLocationMeta">—</p></div><div class="live-aqi-block"><small>US AQI</small><strong id="liveAqi">—</strong><span id="liveAqiLabel">—</span></div></div>
+          <div id="livePollutants" class="live-pollutant-grid"></div>
+          <div class="live-chart-heading"><div><h3>Hourly AQI timeline</h3><p>Past 24 hours and forecast for the next 24 hours.</p></div><span id="liveUpdatedAt" class="panel-badge">—</span></div>
+          <div id="liveAqiChart" class="plot-chart trend-plot"></div>
+          <p class="live-disclaimer" id="liveDisclaimer">Model-based estimates; not a substitute for official local monitoring data or health advice.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-section" id="locations">
+      <div class="section-mini-title"><span>02</span> LOCATION ANALYSIS <i></i></div>
+      <div class="panel-grid">
+        <div class="panel chart-panel"><div class="panel-heading"><div><h2>Average AQI by location</h2><p>Compare mean AQI values across recorded locations.</p></div><span class="panel-badge">COMPARISON</span></div><div id="locationChart" class="plot-chart"></div></div>
+        <div class="panel"><div class="panel-heading"><div><h2>Location summary</h2><p>Average values for each available pollutant.</p></div></div><div class="table-wrap"><table><thead><tr><th>Location</th>{% for col in available %}<th>{{ col }}</th>{% endfor %}</tr></thead><tbody>{% for row in locations %}<tr><td class="location-name">{{ row.location }}</td>{% for col in available %}<td>{% if row[col] is not none %}{{ "%.2f"|format(row[col]) }}{% else %}—{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></div>
+      </div>
+    </section>
+
+    <section class="dashboard-section" id="trends">
+      <div class="section-mini-title"><span>03</span> POLLUTION TRENDS <i></i></div>
+      <div class="panel chart-panel"><div class="panel-heading"><div><h2>Monthly AQI trend</h2><p>Average AQI by calendar month, based on rows with valid dates.</p></div><span class="panel-badge green-badge">TIME SERIES</span></div><div id="trendChart" class="plot-chart trend-plot"></div>{% if not trends %}<p class="empty-note">No valid Date and AQI values were found to build a trend chart.</p>{% endif %}</div>
+      <div class="section-subheading"><h2>Pollutant statistics</h2><p>Descriptive summary for every pollutant found in the uploaded file.</p></div>
+      <div class="stats-grid">{% for col, values in stats.items() %}<div class="stat-card"><div class="stat-card-head"><span>{{ col }}</span><span class="stat-dot"></span></div><div class="stat-average">{{ "%.2f"|format(values.average) }}<small> AVG</small></div><div class="stat-details"><div><small>MINIMUM</small><strong>{{ "%.2f"|format(values.minimum) }}</strong></div><div><small>MEDIAN</small><strong>{{ "%.2f"|format(values.median) }}</strong></div><div><small>MAXIMUM</small><strong>{{ "%.2f"|format(values.maximum) }}</strong></div><div><small>STD. DEV.</small><strong>{{ "%.2f"|format(values.std) }}</strong></div></div></div>{% endfor %}</div>
+    </section>
+
+    <section class="dashboard-section" id="records">
+      <div class="section-mini-title"><span>04</span> DATA EXPLORER <i></i></div>
+      <div class="panel"><div class="panel-heading records-heading"><div><h2>Dataset preview</h2><p>Showing up to the first 100 rows after cleaning.</p></div><input type="search" id="tableSearch" class="search-input" placeholder="Search records…"></div><div class="table-wrap preview-wrap"><table id="dataTable"><thead><tr>{% for col in columns %}<th>{{ col }}</th>{% endfor %}</tr></thead><tbody>{% for row in preview %}<tr>{% for col in columns %}<td>{{ row[col] }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div><div class="table-footer">Showing {{ preview|length }} of {{ total_records }} records <span>Duplicates removed during cleaning</span></div></div>
+    </section>
+
+    <section class="dashboard-section export-section">
+      <div class="panel export-panel"><div class="export-icon">↓</div><div><h2>Take your analysis with you</h2><p>Download a statistics report as a CSV file for your project documentation.</p></div><form action="/download/statistics" method="post" enctype="multipart/form-data" id="reportForm"><label class="secondary-btn compact-btn file-label">Choose CSV again<input type="file" name="file" accept=".csv,text/csv" required></label><button type="submit" class="primary-btn compact-btn">Export statistics ↓</button></form></div>
+    </section>
+    <footer class="dash-footer"><a class="brand footer-brand" href="/"><span class="brand-mark">◈</span><span>AERO<span class="accent">PULSE</span></span></a><span>AIR QUALITY ANALYSIS & POLLUTION TREND MONITORING</span><a href="#">BACK TO TOP ↑</a></footer>
+  </main>
+  <script>
+    const commonLayout = {
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: {family: 'DM Sans, sans-serif', color: '#a5b4c4', size: 11},
+      margin: {l: 45, r: 18, t: 15, b: 55},
+      xaxis: {gridcolor: 'rgba(148,163,184,.09)', zerolinecolor: 'rgba(148,163,184,.12)', linecolor: 'rgba(148,163,184,.12)'},
+      yaxis: {gridcolor: 'rgba(148,163,184,.09)', zerolinecolor: 'rgba(148,163,184,.12)', linecolor: 'rgba(148,163,184,.12)'},
+      showlegend: false
+    };
+    const locations = {{ locations|tojson }};
+    const aqiLocations = locations.filter(row => row.AQI !== null && row.AQI !== undefined);
+    if (aqiLocations.length) {
+      Plotly.newPlot('locationChart', [{
+        type: 'bar', x: aqiLocations.map(r => r.location), y: aqiLocations.map(r => r.AQI),
+        marker: {color: ['#49e6a6','#36c5db','#a78bfa','#ffad66','#f472b6'], line: {width: 0}, cornerradius: 6},
+        text: aqiLocations.map(r => Number(r.AQI).toFixed(1)), textposition: 'outside',
+        textfont: {color: '#e4edf5', size: 11}, hovertemplate: '%{x}<br>Average AQI: %{y:.2f}<extra></extra>'
+      }], {...commonLayout, yaxis: {...commonLayout.yaxis, title: 'Average AQI', rangemode: 'tozero'}, xaxis: {...commonLayout.xaxis, tickangle: -10}}, {responsive: true, displayModeBar: false});
+    } else {
+      document.getElementById('locationChart').innerHTML = '<div class="empty-note">No AQI values are available for location comparison.</div>';
+    }
+    const trends = {{ trends|tojson }};
+    if (trends.length) {
+      Plotly.newPlot('trendChart', [{
+        type: 'scatter', mode: 'lines+markers', x: trends.map(r => r.month), y: trends.map(r => r.aqi),
+        line: {color: '#49e6a6', width: 3, shape: 'spline'}, marker: {color: '#49e6a6', size: 8, line: {color: '#0c171c', width: 2}},
+        fill: 'tozeroy', fillcolor: 'rgba(73,230,166,.08)', hovertemplate: '%{x}<br>Average AQI: %{y:.2f}<extra></extra>'
+      }], {...commonLayout, margin: {l: 50, r: 20, t: 15, b: 55}, yaxis: {...commonLayout.yaxis, title: 'Average AQI', rangemode: 'tozero'}}, {responsive: true, displayModeBar: false});
+    } else {
+      document.getElementById('trendChart').innerHTML = '<div class="empty-note">No valid date/AQI records are available for the trend chart.</div>';
+    }
+    document.getElementById('tableSearch').addEventListener('input', function() {
+      const query = this.value.toLowerCase();
+      document.querySelectorAll('#dataTable tbody tr').forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
+      });
+    });
+    // Live location AQI lookup. Values are fetched from Open-Meteo on demand.
+    const liveForm = document.getElementById('liveSearchForm');
+    const placeInput = document.getElementById('placeInput');
+    const liveStatus = document.getElementById('liveStatus');
+    const liveResults = document.getElementById('liveResults');
+    let lastLivePlace = '';
+    let liveRefreshTimer = null;
+
+    function aqiDescription(value) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return 'Unavailable';
+      const n = Number(value);
+      if (n <= 50) return 'Good';
+      if (n <= 100) return 'Moderate';
+      if (n <= 150) return 'Unhealthy for sensitive groups';
+      if (n <= 200) return 'Unhealthy';
+      if (n <= 300) return 'Very unhealthy';
+      return 'Hazardous';
+    }
+    function displayNumber(value, digits=1) {
+      return value === null || value === undefined || !Number.isFinite(Number(value)) ? '—' : Number(value).toFixed(digits);
+    }
+    async function loadLiveAir(place) {
+      if (!place) return;
+      lastLivePlace = place;
+      liveStatus.textContent = `Fetching air-quality estimates for ${place}…`;
+      liveStatus.className = 'live-status';
+      document.getElementById('liveSearchButton').disabled = true;
+      try {
+        const response = await fetch(`/api/live-air-quality?place=${encodeURIComponent(place)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not load this location.');
+        const current = data.current || {};
+        const units = data.current_units || {};
+        const loc = data.location || {};
+        document.getElementById('liveLocationName').textContent = loc.name || place;
+        document.getElementById('liveLocationMeta').textContent = [loc.admin1, loc.country, loc.timezone].filter(Boolean).join(' · ');
+        const aqi = current.us_aqi;
+        document.getElementById('liveAqi').textContent = displayNumber(aqi, 0);
+        document.getElementById('liveAqiLabel').textContent = aqiDescription(aqi);
+        const pollutantItems = [
+          ['PM2.5', current.pm2_5, units.pm2_5], ['PM10', current.pm10, units.pm10],
+          ['Carbon monoxide', current.carbon_monoxide, units.carbon_monoxide],
+          ['Nitrogen dioxide', current.nitrogen_dioxide, units.nitrogen_dioxide],
+          ['Sulphur dioxide', current.sulphur_dioxide, units.sulphur_dioxide],
+          ['Ozone', current.ozone, units.ozone]
+        ];
+        document.getElementById('livePollutants').innerHTML = pollutantItems.map(([name,value,unit]) =>
+          `<div class="live-pollutant-card"><small>${name}</small><strong>${displayNumber(value, 2)}</strong><span>${unit || ''}</span></div>`
+        ).join('');
+        const hourly = data.hourly || {};
+        const times = hourly.time || [];
+        const values = hourly.us_aqi || [];
+        const valid = times.map((t,i) => ({time:t, aqi:values[i]})).filter(x => x.aqi !== null && x.aqi !== undefined);
+        if (valid.length) {
+          Plotly.newPlot('liveAqiChart', [{type:'scatter', mode:'lines+markers', x:valid.map(x=>x.time), y:valid.map(x=>x.aqi),
+            line:{color:'#36c5db',width:3}, marker:{color:'#49e6a6',size:5},
+            fill:'tozeroy', fillcolor:'rgba(54,197,219,.08)', hovertemplate:'%{x}<br>US AQI: %{y}<extra></extra>'
+          }], {...commonLayout, margin:{l:48,r:18,t:15,b:65}, xaxis:{...commonLayout.xaxis, tickangle:-25, nticks:8}, yaxis:{...commonLayout.yaxis,title:'US AQI',rangemode:'tozero'}}, {responsive:true,displayModeBar:false});
+        } else {
+          document.getElementById('liveAqiChart').innerHTML = '<div class="empty-note">Hourly AQI timeline is not available for this location right now.</div>';
+        }
+        document.getElementById('liveUpdatedAt').textContent = current.time ? `Updated ${current.time}` : 'Latest available';
+        document.getElementById('liveDisclaimer').textContent = data.note || 'Model-based estimates, not guaranteed live readings from a physical monitoring station.';
+        liveResults.hidden = false;
+        liveStatus.textContent = `Showing the latest available estimates for ${loc.name || place}.`;
+        liveStatus.className = 'live-status success';
+        if (liveRefreshTimer) clearInterval(liveRefreshTimer);
+        liveRefreshTimer = setInterval(() => loadLiveAir(lastLivePlace), 10 * 1000);
+      } catch (error) {
+        liveStatus.textContent = error.message;
+        liveStatus.className = 'live-status error';
+      } finally {
+        document.getElementById('liveSearchButton').disabled = false;
+      }
+    }
+    liveForm.addEventListener('submit', event => { event.preventDefault(); loadLiveAir(placeInput.value.trim()); });
+    document.getElementById('liveRefreshButton').addEventListener('click', () => loadLiveAir(lastLivePlace || placeInput.value.trim()));
+    // Load the default city when the dashboard opens.
+    loadLiveAir(placeInput.value.trim());
+
+  </script>
+</body>
+</html>

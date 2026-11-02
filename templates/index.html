@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroPulse | Air Quality Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="landing-body">
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <nav class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">◈</span><span>AERO<span class="accent">PULSE</span></span></a>
+    <div class="nav-right"><span class="live-dot"></span><span>ENVIRONMENTAL INTELLIGENCE</span><a href="#workspace" class="nav-cta">Launch dashboard <span>↗</span></a></div>
+  </nav>
+
+  <main class="hero">
+    <div class="hero-copy">
+      <div class="eyebrow"><span class="eyebrow-line"></span> AIR QUALITY ANALYTICS PLATFORM</div>
+      <h1>See the air.<br>Understand the <span class="gradient-text">impact.</span></h1>
+      <p class="hero-description">Turn pollution data into clear signals. Explore air quality, compare locations, and track pollutant trends in one focused workspace.</p>
+      <div class="hero-actions">
+        <a href="#workspace" class="primary-btn">Explore dashboard <span>↗</span></a>
+        <a href="{{ url_for('sample_csv') }}" class="secondary-btn">↓ Download sample CSV</a>
+      </div>
+      <div class="hero-note"><span class="tiny-check">✓</span> CSV-powered · AQI insights · Trend monitoring</div>
+    </div>
+    <div class="hero-visual">
+      <div class="orbital orbital-a"></div><div class="orbital orbital-b"></div>
+      <div class="visual-core"><div class="core-symbol">◈</div><div class="core-label">AIR<br>INTELLIGENCE</div></div>
+      <div class="float-card float-card-top"><span class="float-icon green">↗</span><div><small>LIVE ANALYTICS</small><strong>Data to insight</strong></div><span class="mini-bars"><i></i><i></i><i></i><i></i><i></i></span></div>
+      <div class="float-card float-card-bottom"><div class="pulse-ring"><span></span></div><div><small>MONITORING MODE</small><strong>Pollution trends</strong></div><span class="status-pill">READY</span></div>
+      <div class="visual-caption">MEASURE · COMPARE · UNDERSTAND</div>
+    </div>
+  </main>
+
+  <section class="feature-strip">
+    <div class="feature"><span class="feature-icon">⌁</span><div><strong>Pollutant insights</strong><small>AQI, PM2.5, PM10, NO₂, SO₂, CO & O₃</small></div></div>
+    <div class="feature"><span class="feature-icon">▥</span><div><strong>Location comparison</strong><small>Find differences between locations</small></div></div>
+    <div class="feature"><span class="feature-icon">⌁</span><div><strong>Time-series trends</strong><small>Follow monthly AQI movement</small></div></div>
+  </section>
+
+  <section class="workspace-section" id="workspace">
+    <div class="section-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> YOUR WORKSPACE</div><h2>Bring your data <span class="gradient-text">to life.</span></h2></div><p>Upload a CSV dataset or explore the included sample to preview the analytics experience.</p></div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}{% endif %}
+    {% endwith %}
+    <div class="upload-grid">
+      <form class="upload-card" action="/" method="post" enctype="multipart/form-data" id="uploadForm">
+        <div class="upload-card-top"><span class="upload-icon">↑</span><span class="card-tag">YOUR DATA</span></div>
+        <h3>Upload a dataset</h3><p>Use your own air quality records in CSV format. Your file should contain pollutant columns such as AQI, PM2.5 or PM10.</p>
+        <label class="drop-zone" for="fileInput" id="dropZone"><span class="file-icon">▤</span><strong id="fileName">Choose a CSV file</strong><small>Click to browse · .csv format</small><input type="file" name="file" id="fileInput" accept=".csv,text/csv" required></label>
+        <button type="submit" class="primary-btn full-btn">Analyze my data <span>→</span></button>
+      </form>
+      <div class="upload-card sample-card">
+        <div class="upload-card-top"><span class="upload-icon sample-icon">✧</span><span class="card-tag">QUICK START</span></div>
+        <h3>Explore sample data</h3><p>Not ready with a file? Start with 12 sample records from Delhi, Mumbai, and Faridabad to see the dashboard in action.</p>
+        <div class="sample-stats"><div><strong>12</strong><small>RECORDS</small></div><div><strong>03</strong><small>LOCATIONS</small></div><div><strong>07</strong><small>POLLUTANTS</small></div></div>
+        <form action="/" method="post"><input type="hidden" name="use_sample" value="yes"><button type="submit" class="secondary-btn full-btn">Load sample dashboard <span>→</span></button></form>
+      </div>
+    </div>
+    <div class="data-tip"><span>ⓘ</span><div><strong>Expected format</strong><p>Recommended columns: <code>Date</code>, <code>Location</code>, <code>AQI</code>, <code>PM2.5</code>, <code>PM10</code>, <code>NO2</code>, <code>SO2</code>, <code>CO</code>, <code>O3</code>. At least one recognized pollutant column is required.</p></div></div>
+  </section>
+  <footer><a class="brand footer-brand" href="/"><span class="brand-mark">◈</span><span>AERO<span class="accent">PULSE</span></span></a><span>Air Quality Analysis & Pollution Trend Monitoring</span><span>BUILT FOR BETTER INSIGHT <span class="accent">●</span></span></footer>
+  <script>
+    const input = document.getElementById('fileInput');
+    const name = document.getElementById('fileName');
+    const zone = document.getElementById('dropZone');
+    input.addEventListener('change', () => {
+      if (input.files.length) {
+        name.textContent = input.files[0].name;
+        zone.classList.add('file-selected');
+      }
+    });
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragging'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragging'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.classList.remove('dragging');
+      if (e.dataTransfer.files.length) {
+        input.files = e.dataTransfer.files;
+        name.textContent = input.files[0].name;
+        zone.classList.add('file-selected');
+      }
+    });
+  </script>
+</body>
+</html>
