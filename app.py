@@ -145,29 +145,75 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/api/geocode")
+def geocode_place():
+    """Return multiple place matches so users can choose a campus-level match."""
+    place = (request.args.get("place") or "").strip()
+    if not place or len(place) > 120:
+        return jsonify({"error": "Enter a place name up to 120 characters."}), 400
+    
+    known_places = []
+    if "manav rachna" in place.casefold():
+        known_places.append({
+            "name": "Manav Rachna International Institute of Research and Studies (campus)",
+            "admin1": "Faridabad, Haryana", "country": "India",
+            "latitude": 28.450674, "longitude": 77.283613,
+        })
+    try:
+        response = requests.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": place, "count": 8, "language": "en", "format": "json"}, timeout=12,
+        )
+        response.raise_for_status()
+        matches = response.json().get("results") or []
+        formatted = [{
+            "name": item.get("name"), "admin1": item.get("admin1"), "country": item.get("country"),
+            "latitude": item.get("latitude"), "longitude": item.get("longitude"),
+        } for item in matches]
+        return jsonify({"results": known_places + formatted})
+    except requests.RequestException:
+        if known_places:
+            return jsonify({"results": known_places})
+        return jsonify({"error": "The location service could not be reached. Try again."}), 502
+    except (ValueError, TypeError):
+        return jsonify({"error": "The location service returned an unexpected response."}), 502
+
 @app.route("/api/live-air-quality")
 def live_air_quality():
-    """Look up model-based current and hourly air-quality estimates for a place."""
+    """Look up model-based current and hourly air-quality estimates for a place or coordinate."""
     place = (request.args.get("place") or "").strip()
-    if not place:
-        return jsonify({"error": "Enter a city or place name."}), 400
-    if len(place) > 120:
-        return jsonify({"error": "Place name is too long."}), 400
+    latitude_arg, longitude_arg = request.args.get("latitude"), request.args.get("longitude")
+    if latitude_arg is not None or longitude_arg is not None:
+        try:
+            latitude, longitude = float(latitude_arg), float(longitude_arg)
+            if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+                raise ValueError
+        except (TypeError, ValueError):
+            return jsonify({"error": "Enter valid latitude and longitude coordinates."}), 400
+        location = {"name": place or "Selected coordinates", "latitude": latitude, "longitude": longitude}
+    elif not place:
+        return jsonify({"error": "Enter a place or use your current location."}), 400
+    else:
+        if len(place) > 120:
+            return jsonify({"error": "Place name is too long."}), 400
+        try:
+            geo_response = requests.get(
+                "https://geocoding-api.open-meteo.com/v1/search",
+                params={"name": place, "count": 1, "language": "en", "format": "json"},
+                timeout=12,
+            )
+            geo_response.raise_for_status()
+            results = (geo_response.json().get("results") or [])
+            if not results:
+                return jsonify({"error": f"No matching place found for '{place}'. Try a nearby city name."}), 404
+            location = results[0]
+            latitude, longitude = location["latitude"], location["longitude"]
+        except requests.RequestException:
+            return jsonify({"error": "The location service could not be reached. Try again."}), 502
+        except (ValueError, KeyError, TypeError):
+            return jsonify({"error": "The location service returned an unexpected response."}), 502
 
     try:
-        geo_response = requests.get(
-            "https://geocoding-api.open-meteo.com/v1/search",
-            params={"name": place, "count": 1, "language": "en", "format": "json"},
-            timeout=12,
-        )
-        geo_response.raise_for_status()
-        geo_data = geo_response.json()
-        results = geo_data.get("results") or []
-        if not results:
-            return jsonify({"error": f"No matching place found for '{place}'. Try a nearby city name."}), 404
-
-        location = results[0]
-        latitude, longitude = location["latitude"], location["longitude"]
         air_response = requests.get(
             "https://air-quality-api.open-meteo.com/v1/air-quality",
             params={
@@ -229,5 +275,7 @@ def download_statistics():
         flash("Could not create the statistics report from that CSV.", "error")
         return redirect(url_for("index"))
 
+
 if __name__ == "__main__":
     app.run(debug=True)
+
